@@ -35,7 +35,8 @@ def place_colors(item):
     x = item['x']
     y = item['y']
     color = item['color']
-    canvas.create_rectangle(x * CELL_SIZE, y * CELL_SIZE, (x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE, fill=color, outline="")
+    size = item['size']
+    canvas.create_rectangle(x * (CELL_SIZE - (CELL_SIZE - size)), y * (CELL_SIZE - (CELL_SIZE - size)), (x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE, fill=color, outline="")
 
 # Function to add messages to the text area
 def add_message(message):
