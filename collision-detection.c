@@ -118,14 +118,14 @@ void rotate(int theta) {
     while (angle < get_angle()) {
       stepper_steps(3, -3);
       stepper_wait();
-      printf("angle: %f, theta: %d, curr: %f\n", angle, theta, get_angle());
+      //printf("angle: %f, theta: %d, curr: %f\n", angle, theta, get_angle());
     } 
   } else {
     // rotate to the correct angle
     while (angle > get_angle()) {
       stepper_steps(-3, 3);
       stepper_wait();
-      printf("angle: %f, theta: %d, curr: %f\n", angle, theta, get_angle());
+      //printf("angle: %f, theta: %d, curr: %f\n", angle, theta, get_angle());
     }
   }
   // recalibrate to make sure that the robot angle is within the error margin
@@ -171,9 +171,9 @@ int count_occurrences(int arr[], int size, int element) {
 }
 
 
-const uint32_t SENSOR_HEIGHT = 55; // height of sensor off the ground
-const uint32_t BIG = 30; // size of big rock
-const uint32_t SMALL = 36; // size of small rock
+const uint32_t SENSOR_HEIGHT = 77; // height of sensor off the ground
+const uint32_t BIG = 50; // size of big rock
+const uint32_t SMALL = 30; // size of small rock
 int measure_rock (void) {
     /*
     Measures the size of the rock with distance sensor
@@ -202,7 +202,7 @@ int measure_rock (void) {
         //printf("tot:%dmm, diff:%dmm\n", distance, diff);
         
         // 5x5x5
-        if (diff <= (BIG + 10) && diff >= (BIG - 10)) {
+        if (diff <= (BIG + 15) && diff >= (BIG - 15)) {
             // printf("Detected cube 5x5x5 [cm]\n");
             result[i] = 1;
         // 3x3x3
@@ -217,8 +217,10 @@ int measure_rock (void) {
     int count_small = count_occurrences(result, readings, 0);
 
     if (count_big > count_small) {
+        printf("Big\n");
         return 1;
     } else if (count_small > count_big) {
+        printf("small\n");
         return 0;
     } else {
         return -1;
@@ -291,17 +293,18 @@ void obj_in_range (double distances[], int in_range[]) {
     in_range[1] = 1 or 0 for true/false
     */
     printf("starting obj_in_range()\n");
-    int max_range = 15;
+    int max_range = 20;
+    int min_range = 0;
 
     // checks left sensor
-    if (distances[0] >= 0 && distances[0] <= max_range) {
+    if (distances[0] >= min_range && distances[0] <= max_range) {
         in_range[0] = 1;
     } else {
         in_range[0] = 0;
     }
 
     // checks right sensor
-    if (distances[1] >= 0 && distances[1] <= max_range) {
+    if (distances[1] >= min_range && distances[1] <= max_range) {
         in_range[1] = 1;
     } else {
         in_range[1] = 0;
@@ -309,8 +312,8 @@ void obj_in_range (double distances[], int in_range[]) {
 }
 
 
-const int ROT_ANGLE = 12; // degrees
-const int MV_DIST = 6; // cm
+const int ROT_ANGLE = 20; // degrees
+const int MV_DIST = 3; // cm
 int obj_left (void) {
     /*
     Steering to go towards object that is in the left
@@ -325,6 +328,7 @@ int obj_left (void) {
     if (rock_size == -1 && (mountain_dist > UStoDS || mountain_dist == -1)) {
         rotate(-ROT_ANGLE);
         stepper_wait();
+        rock_size = measure_rock();
         move(MV_DIST);
         stepper_wait();
         rock_size = measure_rock();
@@ -354,6 +358,7 @@ int obj_right (void) {
     if (rock_size == -1 && (mountain_dist > UStoDS || mountain_dist == -1)) {
         rotate(ROT_ANGLE);
         stepper_wait();
+        rock_size = measure_rock();
         move(MV_DIST);
         stepper_wait();
         rock_size = measure_rock();
@@ -366,6 +371,18 @@ int obj_right (void) {
     } else {
         return measure_rock();
     }
+}
+
+
+void backout (void) {
+    move(-10);
+    stepper_wait();
+    rotate(90);
+    stepper_wait();
+    move(20);
+    stepper_wait();
+    rotate(-90);
+    stepper_wait();
 }
 
 
@@ -408,20 +425,11 @@ int main (void) {
     // MAIN COLLISION DETECTION //
     double distances[2]; // [left, right]
     int in_range[2]; // [left, right] 1/0 (1 = in range 0 = isnt in range)
-    int object; // value for type of object that it sees (1 = big rock, 0 = small rock, 2 = mountain, -1 = no rock)
+    int object = -1; // value for type of object that it sees (1 = big rock, 0 = small rock, 2 = mountain, -1 = no rock)
+    int top_us;
 
-    // // measure ultrasound distances
-    // ultrasound_dist(distances);
-    // // check if a sensor detects an object in the specified range
-    // obj_in_range(distances, in_range);
-    // if (in_range[0] == 1) {
-    //     object = obj_left();
-    // }
-    // if (in_range[1] == 1) {
-    //     object = obj_right();
-    // }
-    // printf("main loop finished, object is :%d", object);
-    while (1) {
+    int loop = 1;
+    while (loop == 1) {
         // measure ultrasound distances
         ultrasound_dist(distances);
         // check if a sensor detects an object in the specified range
@@ -432,19 +440,21 @@ int main (void) {
         if (in_range[1] == 1) {
             object = obj_right();
         }
-        printf("%d", object);
-    }
 
+        top_us = measure_rock();
+        if (top_us == 1 || top_us == 0) {
+            move(6);
+            stepper_wait();
+            loop = 0;
+        } else if (top_us == 2) {
+            loop = 0;
+        }
+    }
+    printf("%d, %d\n", top_us, object);
+    sleep_msec(5000);
+    backout();
     iic_destroy(IIC0);
     stepper_destroy();
     pynq_destroy();
-    return 1;
+    return EXIT_SUCCESS;
 }
-
-
-
-
-
-
-
-
