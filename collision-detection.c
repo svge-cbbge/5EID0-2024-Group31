@@ -312,6 +312,7 @@ void obj_in_range (double distances[], int in_range[]) {
 }
 
 
+
 const int ROT_ANGLE = 20; // degrees
 const int MV_DIST = 3; // cm
 int obj_left (void) {
