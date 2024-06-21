@@ -220,17 +220,13 @@ void rotate(int theta) {
 
 
 void move_forward(void) {
-  // float current_theta = get_angle(uart);
-  while(!gpio_get_level(FRONT_IR) && !gpio_get_level(LEFT_IR) && !gpio_get_level(RIGHT_IR)) {
+  float current_theta = get_angle(uart);
+  while(!gpio_get_level(FRONT_IR)) {
     move(10);
-    while(!stepper_steps_done()) {
-      if (gpio_get_level(FRONT_IR) || gpio_get_level(LEFT_IR) || gpio_get_level(RIGHT_IR)) {
-        stepper_reset();
-        sleep_msec(100);
-        stepper_enable();
-        break;
-      }
-      sleep_msec(10);
+    current_theta = get_angle(uart);
+    stepper_irq(FRONT_IR);
+    if (current_theta < (angle - ERROR_MARGIN) || current_theta > (angle - ERROR_MARGIN)) {
+      readjust_angle();
     }
   }
 }
@@ -252,7 +248,7 @@ void startup() {
     while(!gpio_get_level(FRONT_IR) && gpio_get_level(LEFT_IR)) {
       move(1);
       stepper_irq(FRONT_IR);
-      // readjust_angle();
+      readjust_angle();
     }
 
     if (!gpio_get_level(LEFT_IR)) {
@@ -277,7 +273,7 @@ void startup() {
     while(!gpio_get_level(FRONT_IR)) {
       move(1);
       stepper_irq(FRONT_IR);
-      // readjust_angle();
+      readjust_angle();
     }
     //check if it is a corner
     if (gpio_get_level(FRONT_IR) && gpio_get_level(LEFT_IR)) {
@@ -292,40 +288,21 @@ void startup() {
 void snake_algo(void) {
   while(1) {
     move_forward();
-    move(-5);
-    stepper_wait();
-    rotate(175);
+    rotate(180);
     stepper_wait();
     move_forward();
-    move(-5);
+    rotate(90);
     stepper_wait();
-    rotate(87);
-    stepper_wait();
-    move(15);
+    move(5);
     stepper_irq(FRONT_IR);
-    rotate(86);
+    rotate(90);
     stepper_wait();
   }
 }
 
-void cleanup() {
-    printf("Performing cleanup...\n");
-    if (uart != NULL) {
-        simple_uart_close(uart);
-    }
-    stepper_disable();
-    exit(EXIT_SUCCESS);
-}
-
-void signal_handler(int signum) {
-    if (signum == SIGINT) {
-        cleanup();
-    }
-}
 
 int main(void) {
   // Open the UART device
-  signal(SIGINT, signal_handler);
   uart = simple_uart_open(DEVICE, BAUDRATE, SETTINGS);
   if (uart == NULL) {
       fprintf(stderr, "Failed to open UART device %s\n", DEVICE);
@@ -380,7 +357,7 @@ int main(void) {
       } else if (strcmp(buffer, "back") == 0) {
           stepper_steps(-1325,1325);
       } else if (strcmp(buffer, "start") == 0) {
-          // startup();
+          startup();
           snake_algo();
       } else if (strcmp(buffer, "rotate") == 0) {
         rotate(90);
