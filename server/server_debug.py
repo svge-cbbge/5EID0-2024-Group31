@@ -1,4 +1,5 @@
 import paho.mqtt.client as mqtt
+import threading
 import time
 import sys
 import json
@@ -23,20 +24,19 @@ print(username_2)
 # Callback when connecting to the MQTT broker
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print(f"{client._client_id} Connected to MQTT Broker!")
-        if client._client_id == "home_base_1":
-            # client.subscribe(topic_subscribe_robot_1, qos=1)
-            client.subscribe(topic_publish_robot_1, qos=1)
-        elif client._client_id == "home_base_2":
-            # client.subscribe(topic_subscribe_robot_2, qos=1)
-            client.subscribe(topic_publish_robot_2, qos=1)
+        print(f"{client._client_id.decode()} Connected to MQTT Broker!")
+        if client._client_id.decode() == "home_base_1":
+            client.subscribe(topic_subscribe_robot_1, qos=1)
+            print(f"{client._client_id.decode()} subscribed to {topic_subscribe_robot_1}")
+        elif client._client_id.decode() == "home_base_2":
+            client.subscribe(topic_subscribe_robot_2, qos=1)
+            print(f"{client._client_id.decode()} subscribed to {topic_subscribe_robot_2}")
     else:
         print(f"Failed to connect, return code {rc}\n")
 
 # Callback when receiving a message from the MQTT broker
-# Callback when receiving a message from the MQTT broker
 def on_message(client, userdata, message):
-    print("Received message: " + str(message.payload.decode("utf-8")) + " on topic " + message.topic)
+    print(f"Received message: {str(message.payload.decode('utf-8'))} on topic {message.topic}")
 
 # Setup MQTT clients and callbacks
 client_1 = mqtt.Client("home_base_1", clean_session=True)
@@ -64,20 +64,43 @@ except Exception as e:
     print(f"Failed to connect to MQTT broker at {broker_address} for client 2: {e}")
     exit(1)
 
-# Start the loops for both clients
-client_1.loop_start()
-client_2.loop_start()
+# Function to start the MQTT loop for a client
+def start_mqtt_loop(client):
+    client.loop_start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print(f"Interrupted: Stopping client {client._client_id.decode()}")
+        client.loop_stop()
+        client.disconnect()
+
+# Start the loops for both clients in separate threads
+thread_1 = threading.Thread(target=start_mqtt_loop, args=(client_1,))
+thread_2 = threading.Thread(target=start_mqtt_loop, args=(client_2,))
+thread_1.start()
+thread_2.start()
 
 def send_message(client, topic, message):
-    client.publish(topic, message, qos=1)
+    result = client.publish(topic, message, qos=1)
+    status = result.rc
+    if status == 0:
+        print(f"Message `{message}` sent to topic `{topic}`")
+    else:
+        print(f"Failed to send message to topic `{topic}`")
 
-while True:
-    message = input("")
-    send_message(client_1, topic_publish_robot_1, message)
-    send_message(client_2, topic_publish_robot_2, message)
+try:
+    while True:
+        message = input("Enter message: ")
+        send_message(client_1, topic_publish_robot_1, message)
+        send_message(client_2, topic_publish_robot_2, message)
+except KeyboardInterrupt:
+    print("Interrupted by user")
 
-# Stop the loops and disconnect
+# Stop the loops and disconnect (graceful shutdown)
 client_1.loop_stop()
 client_1.disconnect()
 client_2.loop_stop()
 client_2.disconnect()
+thread_1.join()
+thread_2.join()
