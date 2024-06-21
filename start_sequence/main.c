@@ -191,7 +191,7 @@ void readjust_angle() {
 
 }
 
-void rotate(int theta) {
+void rotate(float theta) {
   // // estimate first
   // float left = -ROTATE_CONST * theta * 7.5;
   // float right = ROTATE_CONST * theta * 7.5;
@@ -241,7 +241,7 @@ void startup() {
   sleep_msec(500);
 
   // adjust to be perpendicular
-  rotate(90);
+  rotate(86.5);
   stepper_wait();
   move(10);
   stepper_irq(FRONT_IR);
@@ -258,17 +258,17 @@ void startup() {
     if (!gpio_get_level(LEFT_IR)) {
       move(5);
       stepper_irq(FRONT_IR);
-      rotate(-90);
+      rotate(-86.5);
       stepper_wait();
       while(!gpio_get_level(FRONT_IR)) {
           move(1);
           stepper_irq(FRONT_IR);
       }
-      rotate(90);
+      rotate(86.5);
       stepper_wait();
     }
     if (gpio_get_level(FRONT_IR)) {
-      rotate(90);
+      rotate(86.5);
       stepper_wait();
       move(3);
       stepper_irq(FRONT_IR);
@@ -299,11 +299,11 @@ void snake_algo(void) {
     move_forward();
     move(-5);
     stepper_wait();
-    rotate(87);
+    rotate(86.5);
     stepper_wait();
     move(15);
     stepper_irq(FRONT_IR);
-    rotate(86);
+    rotate(86.5);
     stepper_wait();
   }
 }
@@ -383,7 +383,7 @@ int main(void) {
           // startup();
           snake_algo();
       } else if (strcmp(buffer, "rotate") == 0) {
-        rotate(90);
+        rotate(86.5);
       } else if(strcmp(buffer, "color") == 0) {
         printf("%s \n", get_color(uart)); 
       }
