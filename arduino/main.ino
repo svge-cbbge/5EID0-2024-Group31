@@ -1,3 +1,5 @@
+// get bearing and color data and send over serial
+
 #include <Wire.h>
 #include <MPU6050_light.h>
 #include <tcs3200.h>
